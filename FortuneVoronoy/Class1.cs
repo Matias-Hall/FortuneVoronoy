@@ -12,28 +12,40 @@ namespace FortuneVoronoy
         public Node beachLine;
         public SortedList<double, IEvent> events = new SortedList<double, IEvent>(); //Key = line
         private List<Line> completeLines = new List<Line>();
-        public void Run(List<Seed> seeds)
+        private Dictionary<PointD, Polygon> polygons = new Dictionary<PointD, Polygon>();
+        public List<Polygon> Run(List<Seed> seeds)
         {
+            Console.WriteLine($"Before :{seeds.Count}");
             seeds = seeds.OrderBy(x => x.Point.Y).ToList();
+            Console.WriteLine($"After :{seeds.Count}");
+            Console.WriteLine($"First point: ({seeds[0].Point.X}, {seeds[0].Point.Y})");
             FirstParabola(seeds[0]);
             Console.WriteLine("First parabola added");
             AnsiConsole.Render(RenderBeachLine(beachLine));
             seeds.RemoveAt(0);
+            Console.WriteLine($"After after:{seeds.Count}");
             seeds.ForEach(x => events.Add(x.Point.Y, new NewSite(x.Point)));
-            while (events.Where(x => x.Value.GetType() == typeof(NewSite)).Any()) //TODO change to any event not newsite.
+            events.Values.ToList().ForEach(x => Console.WriteLine($"{x.AssociatedPoint.X}, {x.AssociatedPoint.Y}"));
+            Console.WriteLine($"After after after:{events.Count}");
+            while (events.Any())
             {
                 IEvent eve = events.Values[0];
                 if (eve.GetType() == typeof(NewSite))
                 {
+                    Console.WriteLine("Going into new site event");
                     SiteEvent(eve.AssociatedPoint);
-                    events.RemoveAt(0);
                 }
                 else
                 {
+                    Console.WriteLine("Going into edge event");
                     EdgeEvent((EdgeEvent)eve);
                 }
+                events.RemoveAt(0);
+                Console.WriteLine($"After after after after:{events.Count}");
+                events.Values.ToList().ForEach(x => Console.WriteLine($"{x.AssociatedPoint.X}, {x.AssociatedPoint.Y}"));
             }
             AnsiConsole.Render(RenderBeachLine(beachLine));
+            return polygons.Values.ToList();
         }
         private void FirstParabola(Seed s)
         {
@@ -46,11 +58,23 @@ namespace FortuneVoronoy
                 IsParabola = true,
                 IsRoot = true
             };
+            polygons.Add(s.Point, new Polygon(s.Point));
             //beachLine.Parent = beachLine;
         }
         private void SiteEvent(PointD s)
         {
+            Console.WriteLine($"Now adding: ({s.X}, {s.Y})");
+            try
+            {
+                polygons.Add(s, new Polygon(s));
+            }
+            catch (ArgumentException e)
+            {
+                Console.WriteLine($"Trouble point: ({s.X},{s.Y})");
+                throw e;
+            }
             Node toSplit = Search(s.X, s.Y);
+            toSplit.Exists = false;
             Console.WriteLine($"Top node: {toSplit.IsRoot}");
             Console.WriteLine(toSplit.Parabola.Focus.X);
             Console.WriteLine(toSplit.Parabola.Focus.Y);
@@ -67,51 +91,61 @@ namespace FortuneVoronoy
                 },
                 IsRoot = toSplit.IsRoot //Since replace will be replacing toSplit, if toSplit was the root replace will be the new root.
             };
-            replace.LeftChildren = new Node(replace)
+            replace.AssignLeftChildren(new Node(replace)
             {
                 Parabola = toSplit.Parabola,
                 IsParabola = true,
-            };
-            replace.RightChildren = new Node(replace)
+            });
+            replace.AssignRightChildren(new Node(replace)
             {
                 Ray = new Ray()
                 {
                     EndPoint = endPoint,
                     Direction = new PointD(1, direction)
                 }
-            };
-            replace.RightChildren.LeftChildren = new Node(replace.RightChildren)
+            });
+            replace.RightChildren.AssignLeftChildren(new Node(replace.RightChildren)
             {
                 Parabola = new Parabola
                 {
                     Focus = new PointD(s.X, s.Y)
                 },
                 IsParabola = true
-            };
-            replace.RightChildren.RightChildren = new Node(replace.RightChildren)
+            });
+            replace.RightChildren.AssignRightChildren(new Node(replace.RightChildren)
             {
                 Parabola = toSplit.Parabola,
                 IsParabola = true
-            };
+            });
             if (toSplit.IsRoot)
             {
                 beachLine = replace;
+                Console.WriteLine(beachLine.RightChildren.Parent == beachLine);
+
             }
             else if (toSplit.IsLeftChildren)
             {
-                toSplit.Parent.LeftChildren = replace;
+                toSplit.Parent.AssignLeftChildren(replace);
+                Console.WriteLine(toSplit.Parent.RightChildren.Parent == toSplit.Parent);
+
             }
             else
             {
-                toSplit.Parent.RightChildren = replace;
+                toSplit.Parent.AssignRightChildren(replace);
+                Console.WriteLine(toSplit.Parent.RightChildren.Parent == toSplit.Parent);
+
             }
+
             AnsiConsole.Render(RenderBeachLine(beachLine));
             CheckForEdgeEvent(replace.LeftChildren);
+            Console.WriteLine($"Still good: {replace.RightChildren.Parent == replace}");
             CheckForEdgeEvent(replace.RightChildren.RightChildren);
-            
+            Console.WriteLine($"Still good: {replace.RightChildren.Parent == replace}");
+
         }
         private void CheckForEdgeEvent(Node n)
         {
+            Console.WriteLine("Checking for edge event");
             Node goingLeft = beachLine;
             while (goingLeft.LeftChildren != null)
             {
@@ -132,41 +166,12 @@ namespace FortuneVoronoy
                 Console.WriteLine("B");
                 return;
             }
-            Node leftRay = null;
-            Node rightRay = null;
-            if (n.Parent.Ray.EndPoint.X < n.Parabola.Focus.X) //Parent is to the left
-            {
-                leftRay = n.Parent;
-                Node travel = leftRay;
-                while (rightRay == null)
-                {
-                    if (travel.Parent.LeftChildren == travel) //If the traveling node is the left of the parent, then the parent is to the right and the ray is to the right of n (I think).
-                    {
-                        rightRay = travel.Parent;
-                    }
-                    else
-                    {
-                        travel = travel.Parent;
-                    }
-                }
-            }
-            else
-            {
-                AnsiConsole.Render(RenderBeachLine(beachLine));
-                rightRay = n.Parent;
-                Node travel = rightRay;
-                while (leftRay == null)
-                {
-                    if (travel.Parent.RightChildren == travel) //If the traveling node is the right of the parent, then the parent is to the left and the ray is to the left of n (I think).
-                    {
-                        leftRay = travel.Parent;
-                    }
-                    else
-                    {
-                        travel = travel.Parent;
-                    }
-                }
-            }
+            AnsiConsole.Render(RenderBeachLine(beachLine));
+            Node leftRay = Prev(n);
+            Console.WriteLine($"Left ray is null: {leftRay == null}");
+            AnsiConsole.Render(RenderBeachLine(beachLine));
+            Node rightRay = Next(n);
+            Console.WriteLine($"Focus coords: ({n.Parabola.Focus.X}, {n.Parabola.Focus.Y})");
             PointD intersection = RaysIntersect(leftRay.Ray, rightRay.Ray);
             Console.WriteLine(intersection.X);
             if (intersection.X != 0)
@@ -199,9 +204,114 @@ namespace FortuneVoronoy
             Console.WriteLine(Math.Sign(det) != Math.Sign(t2));
             return new PointD(a.X + v.X * (t1 / det), a.Y + v.Y * (t1 / det)); //Returns the intersection point.
         }
-        private void EdgeEvent(EdgeEvent eve)
+        private void EdgeEvent(EdgeEvent eve) //TODO Just redo, doesn't work
         {
+            AnsiConsole.Render(RenderBeachLine(beachLine));
+            if (eve.SquishedParabola.Exists)
+            {
+                if (eve.SquishedParabola.IsLeftChildren)
+                {
+                    Node leftRay = Prev(eve.SquishedParabola);
+                    Node leftPar = Prev(leftRay);
+                    Node right = eve.SquishedParabola.Parent.RightChildren;
+                    Node rightPar = right;
+                    if (!right.IsParabola)
+                    {
+                        rightPar = Next(right);
+                    }
+                    double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
+                    Node replacement = new Node(leftRay.Parent)
+                    {
+                        IsRoot = leftRay.Parent.IsRoot,
+                        Ray = new Ray()
+                        {
+                            EndPoint = eve.AssociatedPoint,
+                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, dir)
+                        }
+                    };
+                    replacement.AssignLeftChildren(leftRay.LeftChildren);
+                    if (leftRay.RightChildren == eve.SquishedParabola.Parent)
+                    {
+                        replacement.AssignRightChildren(right);
+                    }
+                    else
+                    {
+                        replacement.AssignRightChildren(leftRay.RightChildren);
+                        replacement.RightChildren.AssignRightChildren(right);
+                    }
 
+                    if (leftRay.IsLeftChildren)
+                    {
+                        leftRay.Parent.AssignLeftChildren(replacement);
+                    }
+                    else if (!leftRay.IsRoot)
+                    {
+                        leftRay.Parent.AssignRightChildren(replacement);
+                    }
+                    else
+                    {
+                        beachLine = replacement;
+                    }
+                    Console.WriteLine("NEW beachline:");
+                    AnsiConsole.Render(RenderBeachLine(beachLine));
+                    polygons.GetValueOrDefault(leftPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                    polygons.GetValueOrDefault(rightPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                    polygons.GetValueOrDefault(eve.SquishedParabola.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                    CheckForEdgeEvent(leftPar);
+                    CheckForEdgeEvent(rightPar);
+                }
+                else
+                {
+                    Node rightRay = Next(eve.SquishedParabola);
+                    Node rightPar = Next(rightRay);
+                    Node left = eve.SquishedParabola.Parent.LeftChildren;
+                    Node leftPar = left;
+                    if (!left.IsParabola)
+                    {
+                        leftPar = Prev(eve.SquishedParabola.Parent);
+                    }
+                    double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
+                    Node replacement = new Node(rightRay.Parent)
+                    {
+                        IsRoot = rightRay.IsRoot,
+                        Ray = new Ray()
+                        {
+                            EndPoint = eve.AssociatedPoint,
+                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, dir) //TODO When both foci y coords are equal it will be a special case, fix later. (Also same line above)
+                        }
+                    };
+                    replacement.AssignRightChildren(rightRay.RightChildren);
+                    if (rightRay == eve.SquishedParabola.Parent.Parent)
+                    {
+                        replacement.AssignLeftChildren(left);
+                    }
+                    else
+                    {
+                        replacement.AssignLeftChildren(rightRay.LeftChildren);
+                        eve.SquishedParabola.Parent.Parent.AssignRightChildren(left);
+                        //replacement.LeftChildren.AssignRightChildren(left);
+                    }
+                    if (rightRay.IsLeftChildren)
+                    {
+                        rightRay.Parent.AssignLeftChildren(replacement);
+                    }
+                    else if (!rightRay.IsRoot)
+                    {
+                        rightRay.Parent.AssignRightChildren(replacement);
+                    }
+                    else
+                    {
+                        beachLine = replacement;
+                    }
+                    Console.WriteLine("NEW beachline:");
+                    AnsiConsole.Render(RenderBeachLine(beachLine));
+                    polygons.GetValueOrDefault(leftPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                    polygons.GetValueOrDefault(rightPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                    polygons.GetValueOrDefault(eve.SquishedParabola.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                    CheckForEdgeEvent(leftPar);
+                    CheckForEdgeEvent(rightPar);
+                }
+            }
         }
         private Node Search(double x, double directrix)
         {
@@ -299,27 +409,45 @@ namespace FortuneVoronoy
             //node being null means lagging is at the last element, since no other element capture x, the last element must.
             return lagging;
         }
-        private Node Next(Node n, bool cameFromLeft, bool cameFromRight, bool firstCall) //Should be correct
+        private Node Next(Node n, bool cameFromLeft = false, bool cameFromRight = false, bool firstCall = true) //Should be correct
         {
-            Console.WriteLine(n.IsRoot);
+            Console.WriteLine($"Is root: {n.IsRoot}");
             if (n.LeftChildren == null)
             {
+                Console.WriteLine($"Point: ({n.Parabola.Focus.X}, {n.Parabola.Focus.Y})");
+                Console.WriteLine("No left children");
                 if (!firstCall) return n;
                 else
                 {
                     if (n.IsLeftChildren) return Next(n.Parent, true, false, false);
-                    else if (firstCall) return Next(n.Parent, false, true, false);
+                    else if (firstCall && n.Parent.RightChildren == n)
+                    {
+                        Console.WriteLine("Activated A");
+                        return Next(n.Parent, false, true, false);
+                    }
                     else return n;
                 }
             }
             else
             {
+                AnsiConsole.Render(RenderBeachLine(n));
                 if (!firstCall)
                 {
-                    if (cameFromLeft) return n;
+                    if (cameFromLeft)
+                    {
+                        Console.WriteLine("Activated C");
+                        return n;
+                    }
                     else if (cameFromRight)
                     {
-                        if (n.IsLeftChildren) return Next(n.Parent, true, false, false);
+                        Console.WriteLine($"Parent is null: {n.Parent == null}");
+                        Console.WriteLine($"Is leftchild: {n.Parent?.LeftChildren == n}");
+                        Console.WriteLine($"Is rightchild: {n.Parent?.RightChildren == n}");
+                        if (n.IsLeftChildren)
+                        {
+                            Console.WriteLine("Activated B");
+                            return Next(n.Parent, true, false, false);
+                        }
                         else if (n.IsRoot) return null;
                         else return Next(n.Parent, false, true, false);
                     }
@@ -332,10 +460,60 @@ namespace FortuneVoronoy
                 }
             }
         }
+        private Node Prev(Node n, bool cameFromLeft = false, bool cameFromRight = false, bool firstCall = true)
+        {
+            if (n.LeftChildren == null)
+            {
+                if (!firstCall) return n;
+                else if (n.IsLeftChildren)
+                {
+                    return Prev(n.Parent, true, false, false);
+                }
+                else
+                {
+                    return Prev(n.Parent, false, true, false);
+                }
+            }
+            else
+            {
+                if (firstCall) return Prev(n.LeftChildren, false, false, false);
+                else if (cameFromRight) return n;
+                else if (cameFromLeft)
+                {
+                    if (n.IsRoot) return null;
+                    else if (n.IsLeftChildren) return Prev(n.Parent, true, false, false);
+                    else return Prev(n.Parent, false, true, false);
+                }
+                else
+                {
+                    return Prev(n.RightChildren, false, false, false);
+                }
+            }
+
+
+        }
         private Tree RenderBeachLine(Node n)
         {
             if (n is null) return new Tree("Done");
-            Tree t = new Tree(n.IsParabola ? "P" : "R");
+            try
+            {
+                if (n == n.LeftChildren || n == n.RightChildren || n.LeftChildren?.LeftChildren == n || n.LeftChildren?.RightChildren == n || n.RightChildren?.LeftChildren == n || n.RightChildren?.RightChildren == n)
+                {
+                    Console.WriteLine(n.IsLeftChildren);
+                    Console.WriteLine(n.RightChildren.IsLeftChildren);
+                    Console.WriteLine(n.Parent.Parent.Parent.IsRoot);
+                    if (n.IsParabola)
+                    {
+                        Console.WriteLine($"Loop caught at: ({n.Parabola.Focus.X}, {n.Parabola.Focus.Y})");
+                    }
+                    throw new Exception($"Looped: in left side: {n == n.LeftChildren}, is parabola: {n.IsParabola}, looped in parent side: {n.Parent == n}");
+                }
+            }
+            catch (NullReferenceException e)
+            {
+                Console.WriteLine(e);
+            }
+            Tree t = new Tree(n.IsParabola ? $"P ({n.Parabola.Focus.X}, {n.Parabola.Focus.Y})" : "R");
             t.AddNode(RenderBeachLine(n.LeftChildren));
             t.AddNode(RenderBeachLine(n.RightChildren));
             return t;

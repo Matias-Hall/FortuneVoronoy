@@ -14,10 +14,14 @@ namespace FortuneVoronoyTest
         public void TestMethod1()
         {
             FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
-            List<Seed> seeds = new List<Seed>() { new PointD(9.8, 21.85), new PointD(22.9, 11.04), new PointD(34.1, 27.1) };
-            fortune.Run(seeds);
-            fortune.events.Values.ToList().ForEach(x => Console.WriteLine($"P:({x.AssociatedPoint.X},{x.AssociatedPoint.Y})"));
-            Assert.IsTrue(fortune.events.Values.Where(x => ComparePoints(x.AssociatedPoint, new PointD(22.163, 23.489), 3)).Any());
+            List<Seed> seeds = new List<Seed>() { new PointD(25.74, 12.75), new PointD(20.6, 2.9), new PointD(32.1, 24.2), new PointD(36.8, 7.15), new PointD(13.3, 17.5) };
+            List<Polygon> p = fortune.Run(seeds);
+            List<PointD> shouldContain = new List<PointD>() { new PointD(28.726, 4.926), new PointD(17.802, 10.626), new PointD(34.123, 15.585), new PointD(22.22, 22.196), };
+            Polygon completed = p.Where(x => x.Site == new PointD(25.74, 12.75)).First();
+            foreach (var cont in shouldContain)
+            {
+                Assert.IsTrue(completed.Vertices.Contains(cont));
+            }
         }
         private bool ComparePoints(PointD a, PointD b, int digits)
         {

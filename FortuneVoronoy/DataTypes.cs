@@ -30,9 +30,15 @@ namespace FortuneVoronoy
             return (x - Focus.X) / (Focus.Y - directrix);
         }
     }
-    struct Polygon
+    public struct Polygon
     {
         public List<PointD> Vertices { get; set; }
+        public PointD Site { get; set; }
+        public Polygon(PointD site)
+        {
+            Site = site;
+            Vertices = new List<PointD>();
+        }
     }
     public struct Seed
     {
@@ -51,13 +57,25 @@ namespace FortuneVoronoy
         public Parabola Parabola { get; set; }
         public Node LeftChildren { get; set; } //Smaller / to the left.
         public Node RightChildren { get; set; } //Larger / to the right.
+        public void AssignLeftChildren(Node child)
+        {
+            LeftChildren = child;
+            child.Parent = this;
+        }
+        public void AssignRightChildren(Node child)
+        {
+            RightChildren = child;
+            child.Parent = this;
+        }
         public Node Parent { get; set; }
         public Node(Node parent)
         {
             Parent = parent;
+            Exists = true;
         }
         public bool IsLeftChildren { get => Parent?.LeftChildren == this; }
         public bool IsRoot { get; set; }
+        public bool Exists { get; set; }
     }
     public interface IEvent
     {
@@ -83,12 +101,34 @@ namespace FortuneVoronoy
     }
     public struct PointD
     {
+        /// <summary>
+        /// How many digits of precision to include in the comparison of two points. Set to 3 digits by default.
+        /// </summary>
+        public int RelevantDigits { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
         public PointD(double x, double y)
         {
             X = x;
             Y = y;
+            RelevantDigits = 3;
+        }
+        public override bool Equals(object b)
+        {
+            if (b is PointD)
+            {
+                PointD pb = (PointD)b;
+                if (Math.Abs(X - pb.X) < 1 / Math.Pow(10, RelevantDigits) && Math.Abs(Y - pb.Y) < 1 / Math.Pow(10, RelevantDigits)) return true;
+            }
+            return false;
+        }
+        public static bool operator ==(PointD a, PointD b)
+        {
+            return a.Equals(b);
+        }
+        public static bool operator !=(PointD a, PointD b)
+        {
+            return !a.Equals(b);
         }
     }
 }
