@@ -56,7 +56,7 @@ namespace FortuneVoronoy
         {
             Parent = parent;
         }
-        public bool IsLeftChildren { get; set; }
+        public bool IsLeftChildren { get => Parent?.LeftChildren == this; }
         public bool IsRoot { get; set; }
     }
     public interface IEvent

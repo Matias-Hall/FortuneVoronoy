@@ -14,19 +14,23 @@ namespace FortuneVoronoy
         private List<Line> completeLines = new List<Line>();
         public void Run(List<Seed> seeds)
         {
+            seeds = seeds.OrderBy(x => x.Point.Y).ToList();
             FirstParabola(seeds[0]);
+            Console.WriteLine("First parabola added");
+            AnsiConsole.Render(RenderBeachLine(beachLine));
             seeds.RemoveAt(0);
             seeds.ForEach(x => events.Add(x.Point.Y, new NewSite(x.Point)));
-            foreach (var eve in events)
+            while (events.Where(x => x.Value.GetType() == typeof(NewSite)).Any()) //TODO change to any event not newsite.
             {
-                if (eve.Value is NewSite)
+                IEvent eve = events.Values[0];
+                if (eve.GetType() == typeof(NewSite))
                 {
-                    SiteEvent(eve.Value.AssociatedPoint);
-                    seeds.RemoveAt(0);
+                    SiteEvent(eve.AssociatedPoint);
+                    events.RemoveAt(0);
                 }
                 else
                 {
-                    EdgeEvent((EdgeEvent)eve.Value);
+                    EdgeEvent((EdgeEvent)eve);
                 }
             }
             AnsiConsole.Render(RenderBeachLine(beachLine));
@@ -46,21 +50,22 @@ namespace FortuneVoronoy
         }
         private void SiteEvent(PointD s)
         {
-            Node toSplit = Search(s.X);
+            Node toSplit = Search(s.X, s.Y);
             Console.WriteLine($"Top node: {toSplit.IsRoot}");
             Console.WriteLine(toSplit.Parabola.Focus.X);
             Console.WriteLine(toSplit.Parabola.Focus.Y);
             PointD endPoint = new PointD(s.X, toSplit.Parabola.AtX(s.X, s.Y));
             double direction = toSplit.Parabola.DerivativeAtX(s.X, s.Y);
             Console.WriteLine($"x:{s.X}, Directrix:{s.Y}");
-            Console.WriteLine(direction);
+            Console.WriteLine($"Direction: {direction}");
             Node replace = new Node(toSplit.Parent)
             {
                 Ray = new Ray()
                 {
                     EndPoint = endPoint,
-                    Direction = new PointD(1, direction )
-                }
+                    Direction = new PointD(-1, -direction)
+                },
+                IsRoot = toSplit.IsRoot //Since replace will be replacing toSplit, if toSplit was the root replace will be the new root.
             };
             replace.LeftChildren = new Node(replace)
             {
@@ -72,7 +77,7 @@ namespace FortuneVoronoy
                 Ray = new Ray()
                 {
                     EndPoint = endPoint,
-                    Direction = new PointD(-1, -direction)
+                    Direction = new PointD(1, direction)
                 }
             };
             replace.RightChildren.LeftChildren = new Node(replace.RightChildren)
@@ -198,91 +203,133 @@ namespace FortuneVoronoy
         {
 
         }
-        private Node Search(Node node, Node next)
+        private Node Search(double x, double directrix)
         {
-            if (node.LeftChildren is not null)
+            if (beachLine.RightChildren == null && beachLine.LeftChildren == null) return beachLine; //First case where no rays exist.
+            Console.WriteLine("E");
+            Console.WriteLine($"X to search {x}");
+            Node lagging = beachLine;
+            while (lagging.LeftChildren != null) //Initializes lagging to leftmost element and node to the one after.
             {
-                Search(node.LeftChildren, node);
+                lagging = lagging.LeftChildren;
             }
-            else if (node.IsParabola)
+            Node node = lagging.Parent;
+            int index = 0;
+            while (node != null)
             {
-
-            }
-            else
-            {
-                Node n = node;
-                while (!n.IsLeftChildren && !n.IsRoot)
+                Console.WriteLine(index);
+                index++;
+                if (!lagging.IsParabola)
                 {
-                    n = n.Parent;
-                }
-                Search(node.RightChildren, n.Parent);
-            }
-        }
-        private (Node, Node) S(Node node, Node lagging, double directrix, double x)
-        {
-            if (!lagging.IsParabola)
-            {
-                if (node.LeftChildren is not null)
-                {
-                    return S(node.LeftChildren, node, directrix, x);
-                }
-                else if (node.RightChildren is not null)
-                {
-                    return S(node.RightChildren, node, directrix, x);
+                    lagging = node;
+                    node = Next(node, false, false, true);
                 }
                 else
                 {
-                    return S(Next(node), node, directrix, x);
-                }
-            }
-            else
-            {
-                //Intersection point => mx+n = ax^2+bx+c
-                //m = direction.y / direction.x
-                //n = initial point.y
-                //0 = ax^2+(b-m)x+(c-n)
-                //Quadratic formula where a = a, b = b-m, c = c-n
-                Parabola p = lagging.Parabola;
-                Ray r = node.Ray;
-                double f = (p.Focus.Y - directrix);
-                double a = 1 / (2 * f);
-                double b = -p.Focus.X / f - (r.Direction.Y / r.Direction.X);
-                double c = ((p.Focus.X * p.Focus.X) / (f) + (directrix + p.Focus.Y)) / 2 - r.EndPoint.Y;
+                    //Intersection point => mx+n = ax^2+bx+c
+                    //m = direction.y / direction.x
+                    //n = m*(-initial x) + initial y
+                    //0 = ax^2+(b-m)x+(c-n)
+                    //Quadratic formula where a = a, b = b-m, c = c-n
+                    Parabola p = lagging.Parabola;
+                    Console.WriteLine($"Focus:({p.Focus.X}, {p.Focus.Y})");
+                    Console.WriteLine(directrix);
+                    Ray r = node.Ray;
+                    Console.WriteLine($"Ray endpoint:({r.EndPoint.X}, {r.EndPoint.Y})");
+                    Console.WriteLine($"Ray direction: {r.Direction.X}");
+                    Console.WriteLine($"Ray is root: {node.IsRoot}");
+                    double f = (p.Focus.Y - directrix);
+                    double a = 1 / (2 * f);
+                    double m = (r.Direction.Y / r.Direction.X);
+                    double b = -p.Focus.X / f - m;
+                    double c = ((p.Focus.X * p.Focus.X) / (f) + (directrix + p.Focus.Y)) / 2 - (m * -r.EndPoint.X + r.EndPoint.Y);
 
-                double discr = b * b - 4 * a * c;
-                if (discr < 0)
-                {/*Handle*/
-                }
-                if (discr == 0) //The intersection is at the focus, saves operation time.
-                {
-                    if (x < p.Focus.X)
+                    double discr = b * b - 4 * a * c;
+                    if (discr < 0)
                     {
-                        return (lagging, null); //Point x hits lagging.
+                        Console.WriteLine($"Discr less than 0: {discr}");
+                        lagging = node;
+                        node = Next(node, false, false, true);
                     }
-                    if (x == p.Focus.X)
+                    else if (discr == 0) //The intersection is at the focus, saves operation time.
                     {
-                        //Handle point x being exactly at the intersection.
+                        if (x < p.Focus.X)
+                        {
+                            return lagging; //Point x hits lagging.
+                        }
+                        else if (x == p.Focus.X)
+                        {
+                            return lagging;
+                            //TODO: What happens when the x coordinate being searched for is exactly on the intersection. What to return?
+                        }
+                        else
+                        {
+                            Console.WriteLine($"One solution discr 0");
+                            lagging = node;
+                            node = Next(node, false, false, true);
+                        }
                     }
                     else
                     {
-                        return S()
+                        double intersection = 0.0d;
+                        if (r.Direction.X > 0) //Chooses which zero to get based on which ray of the line that intersects the parabola it has.
+                        {
+                            intersection = (-b - Math.Sqrt(discr)) / (2 * a);
+                        }
+                        else
+                        {
+                            intersection = (-b + Math.Sqrt(discr)) / (2 * a);
+                        }
+                        if (x < intersection)
+                        {
+                            Console.WriteLine($"Yes dice: intersection = {intersection}");
+                            return lagging; //Point x hits lagging.
+                        }
+                        else
+                        {
+                            Console.WriteLine($"No dice: intersection = {intersection}");
+                            lagging = node;
+                            Console.WriteLine($"Is root: {node.IsRoot}");
+                            Console.WriteLine($"Is ray: {!node.IsParabola}");
+                            node = Next(node, false, false, true);
+                        }
                     }
                 }
             }
+            //node being null means lagging is at the last element, since no other element capture x, the last element must.
+            return lagging;
         }
-        private Node Next(Node n)
+        private Node Next(Node n, bool cameFromLeft, bool cameFromRight, bool firstCall) //Should be correct
         {
-            while (!n.IsLeftChildren && !n.IsRoot)
+            Console.WriteLine(n.IsRoot);
+            if (n.LeftChildren == null)
             {
-                n = n.Parent;
-            }
-            if (!n.IsRoot)
-            {
-                return n.Parent.RightChildren;
+                if (!firstCall) return n;
+                else
+                {
+                    if (n.IsLeftChildren) return Next(n.Parent, true, false, false);
+                    else if (firstCall) return Next(n.Parent, false, true, false);
+                    else return n;
+                }
             }
             else
             {
-                return null; //There are no more elements to the right.
+                if (!firstCall)
+                {
+                    if (cameFromLeft) return n;
+                    else if (cameFromRight)
+                    {
+                        if (n.IsLeftChildren) return Next(n.Parent, true, false, false);
+                        else if (n.IsRoot) return null;
+                        else return Next(n.Parent, false, true, false);
+                    }
+                    else return Next(n.LeftChildren, false, false, false);
+                }
+                else
+                {
+                    Console.WriteLine("YE");
+                    return Next(n.RightChildren, false, false, false);
+                }
             }
         }
         private Tree RenderBeachLine(Node n)
