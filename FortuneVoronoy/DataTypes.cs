@@ -39,6 +39,20 @@ namespace FortuneVoronoy
             Site = site;
             Vertices = new List<PointD>();
         }
+        public override bool Equals(object obj)
+        {
+            if (obj is Polygon)
+            {
+                Polygon pol = (Polygon)obj;
+                if (pol.Site != Site || Vertices.Count != pol.Vertices.Count) return false;
+                for (int i = 0; i < Vertices.Count; i++)
+                {
+                    if (Vertices[i] != pol.Vertices[i]) return false;
+                }
+                return true;
+            }
+            return false;
+        }
     }
     public struct Seed
     {

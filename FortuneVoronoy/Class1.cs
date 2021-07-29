@@ -177,7 +177,16 @@ namespace FortuneVoronoy
             if (intersection.X != 0)
             {
                 PointD focus = n.Parabola.Focus;
-                events.Add(intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2)), new EdgeEvent(intersection, n));
+                try
+                {
+                    Console.WriteLine($"Adding intersection: ({intersection.X}, {intersection.Y})");
+                    events.Add(intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2)), new EdgeEvent(intersection, n));
+                }
+                catch (ArgumentException e)
+                {
+                    Console.WriteLine(events.GetValueOrDefault(intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2))).AssociatedPoint.X);
+                    throw e;
+                }
             }
 
         }
@@ -204,29 +213,29 @@ namespace FortuneVoronoy
             Console.WriteLine(Math.Sign(det) != Math.Sign(t2));
             return new PointD(a.X + v.X * (t1 / det), a.Y + v.Y * (t1 / det)); //Returns the intersection point.
         }
-        private void EdgeEvent(EdgeEvent eve) //TODO Just redo, doesn't work
+        private void EdgeEvent(EdgeEvent eve)
         {
             AnsiConsole.Render(RenderBeachLine(beachLine));
             if (eve.SquishedParabola.Exists)
             {
+                Console.WriteLine($"Vertex being added: ({eve.AssociatedPoint.X}, {eve.AssociatedPoint.Y})");
                 if (eve.SquishedParabola.IsLeftChildren)
                 {
                     Node leftRay = Prev(eve.SquishedParabola);
                     Node leftPar = Prev(leftRay);
                     Node right = eve.SquishedParabola.Parent.RightChildren;
-                    Node rightPar = right;
-                    if (!right.IsParabola)
-                    {
-                        rightPar = Next(right);
-                    }
+                    Node rightPar = Next(Next(eve.SquishedParabola));
+                    Console.WriteLine($"Left parabola is: ({leftPar.Parabola.Focus.X}, {leftPar.Parabola.Focus.Y})");
+                    Console.WriteLine($"Right parabola is: ({rightPar.Parabola.Focus.X}, {rightPar.Parabola.Focus.Y})");
                     double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
+                    Console.WriteLine($"Computed direction: {dir}");
                     Node replacement = new Node(leftRay.Parent)
                     {
-                        IsRoot = leftRay.Parent.IsRoot,
+                        IsRoot = leftRay.IsRoot,
                         Ray = new Ray()
                         {
                             EndPoint = eve.AssociatedPoint,
-                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, dir)
+                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, Math.Abs(dir))
                         }
                     };
                     replacement.AssignLeftChildren(leftRay.LeftChildren);
@@ -237,7 +246,8 @@ namespace FortuneVoronoy
                     else
                     {
                         replacement.AssignRightChildren(leftRay.RightChildren);
-                        replacement.RightChildren.AssignRightChildren(right);
+                        //replacement.RightChildren.AssignRightChildren(right);
+                        eve.SquishedParabola.Parent.Parent.AssignLeftChildren(right);
                     }
 
                     if (leftRay.IsLeftChildren)
@@ -265,11 +275,7 @@ namespace FortuneVoronoy
                     Node rightRay = Next(eve.SquishedParabola);
                     Node rightPar = Next(rightRay);
                     Node left = eve.SquishedParabola.Parent.LeftChildren;
-                    Node leftPar = left;
-                    if (!left.IsParabola)
-                    {
-                        leftPar = Prev(eve.SquishedParabola.Parent);
-                    }
+                    Node leftPar = Prev(Prev(eve.SquishedParabola));
                     double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
                     Node replacement = new Node(rightRay.Parent)
                     {
@@ -277,7 +283,7 @@ namespace FortuneVoronoy
                         Ray = new Ray()
                         {
                             EndPoint = eve.AssociatedPoint,
-                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, dir) //TODO When both foci y coords are equal it will be a special case, fix later. (Also same line above)
+                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, Math.Abs(dir)) //TODO When both foci y coords are equal it will be a special case, fix later. (Also same line above)
                         }
                     };
                     replacement.AssignRightChildren(rightRay.RightChildren);
@@ -311,6 +317,7 @@ namespace FortuneVoronoy
                     CheckForEdgeEvent(leftPar);
                     CheckForEdgeEvent(rightPar);
                 }
+                eve.SquishedParabola.Exists = false; //Avoids multiple intersection events based on the same parabola segment.
             }
         }
         private Node Search(double x, double directrix)
