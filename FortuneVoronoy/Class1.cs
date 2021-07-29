@@ -275,13 +275,26 @@ namespace FortuneVoronoy
                     Console.WriteLine($"Right parabola is: ({rightPar.Parabola.Focus.X}, {rightPar.Parabola.Focus.Y})");
                     double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
                     Console.WriteLine($"Computed direction: {dir}");
+                    PointD dirPt;
+                    if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
+                    {
+                        dirPt = new PointD(1, Math.Abs(dir));
+                    }
+                    else if (rightPar.Parabola.Focus.Y > leftPar.Parabola.Focus.Y)
+                    {
+                        dirPt = new PointD(-1, Math.Abs(dir));
+                    }
+                    else
+                    {
+                        dirPt = new PointD(0, 1); //If both parabolas lie on a horizontal line, the ray from their intersection will be vertical.
+                    }
                     Node replacement = new Node(leftRay.Parent)
                     {
                         IsRoot = leftRay.IsRoot,
                         Ray = new Ray()
                         {
                             EndPoint = eve.AssociatedPoint,
-                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, Math.Abs(dir))
+                            Direction = dirPt
                         }
                     };
                     replacement.AssignLeftChildren(leftRay.LeftChildren);
@@ -292,7 +305,6 @@ namespace FortuneVoronoy
                     else
                     {
                         replacement.AssignRightChildren(leftRay.RightChildren);
-                        //replacement.RightChildren.AssignRightChildren(right);
                         eve.SquishedParabola.Parent.Parent.AssignLeftChildren(right);
                     }
 
@@ -323,13 +335,26 @@ namespace FortuneVoronoy
                     Node left = eve.SquishedParabola.Parent.LeftChildren;
                     Node leftPar = Prev(Prev(eve.SquishedParabola));
                     double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
+                    PointD dirPt;
+                    if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
+                    {
+                        dirPt = new PointD(1, Math.Abs(dir));
+                    }
+                    else if (rightPar.Parabola.Focus.Y > leftPar.Parabola.Focus.Y)
+                    {
+                        dirPt = new PointD(-1, Math.Abs(dir));
+                    }
+                    else
+                    {
+                        dirPt = new PointD(0, 1); //If both parabolas lie on a horizontal line, the ray from their intersection will be vertical.
+                    }
                     Node replacement = new Node(rightRay.Parent)
                     {
                         IsRoot = rightRay.IsRoot,
                         Ray = new Ray()
                         {
                             EndPoint = eve.AssociatedPoint,
-                            Direction = new PointD(rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y ? 1 : -1, Math.Abs(dir)) //TODO When both foci y coords are equal it will be a special case, fix later. (Also same line above)
+                            Direction = dirPt
                         }
                     };
                     replacement.AssignRightChildren(rightRay.RightChildren);
@@ -341,7 +366,6 @@ namespace FortuneVoronoy
                     {
                         replacement.AssignLeftChildren(rightRay.LeftChildren);
                         eve.SquishedParabola.Parent.Parent.AssignRightChildren(left);
-                        //replacement.LeftChildren.AssignRightChildren(left);
                     }
                     if (rightRay.IsLeftChildren)
                     {
