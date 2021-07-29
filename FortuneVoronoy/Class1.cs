@@ -10,7 +10,7 @@ namespace FortuneVoronoy
     public class FortuneVoronoy
     {
         public Node beachLine;
-        public SortedList<double, IEvent> events = new SortedList<double, IEvent>(); //Key = line
+        public SortedList<PointD, IEvent> events = new SortedList<PointD, IEvent>(new EventComparer()); //Key = line
         private List<Line> completeLines = new List<Line>();
         private Dictionary<PointD, Polygon> polygons = new Dictionary<PointD, Polygon>();
         public List<Polygon> Run(List<Seed> seeds)
@@ -19,12 +19,17 @@ namespace FortuneVoronoy
             seeds = seeds.OrderBy(x => x.Point.Y).ToList();
             Console.WriteLine($"After :{seeds.Count}");
             Console.WriteLine($"First point: ({seeds[0].Point.X}, {seeds[0].Point.Y})");
-            FirstParabola(seeds[0]);
-            Console.WriteLine("First parabola added");
-            AnsiConsole.Render(RenderBeachLine(beachLine));
-            seeds.RemoveAt(0);
+            double firstDirectrixLoc = seeds[0].Point.Y;
+            double secondEvent = seeds.Where(x => x.Point.Y > firstDirectrixLoc).First().Point.Y;
+            while (seeds[0].Point.Y == firstDirectrixLoc)
+            {
+                FirstParabola(seeds[0], secondEvent);
+                Console.WriteLine("First parabola added");
+                AnsiConsole.Render(RenderBeachLine(beachLine));
+                seeds.RemoveAt(0);
+            }            
             Console.WriteLine($"After after:{seeds.Count}");
-            seeds.ForEach(x => events.Add(x.Point.Y, new NewSite(x.Point)));
+            seeds.ForEach(x => events.Add(x.Point, new NewSite(x.Point)));
             events.Values.ToList().ForEach(x => Console.WriteLine($"{x.AssociatedPoint.X}, {x.AssociatedPoint.Y}"));
             Console.WriteLine($"After after after:{events.Count}");
             while (events.Any())
@@ -47,19 +52,60 @@ namespace FortuneVoronoy
             AnsiConsole.Render(RenderBeachLine(beachLine));
             return polygons.Values.ToList();
         }
-        private void FirstParabola(Seed s)
+        private void FirstParabola(Seed s, double nextEvent)
         {
-            beachLine = new Node(null)
+            if (beachLine == null)
             {
-                Parabola = new Parabola()
+                beachLine = new Node(null)
                 {
-                    Focus = s.Point,
-                },
-                IsParabola = true,
-                IsRoot = true
-            };
+                    Parabola = new Parabola()
+                    {
+                        Focus = s.Point,
+                    },
+                    IsParabola = true,
+                    IsRoot = true
+                };
+            }
+            else
+            {
+                Node rightMost = beachLine;
+                while (rightMost.RightChildren != null)
+                {
+                    rightMost = rightMost.RightChildren;
+                }
+                double xCoord = (rightMost.Parabola.Focus.X + s.Point.X) / 2;
+                Node replace = new Node(rightMost.Parent)
+                {
+                    IsRoot = rightMost.IsRoot,
+                    Ray = new Ray()
+                    {
+                        EndPoint = new PointD(xCoord, rightMost.Parabola.AtX(xCoord, nextEvent)),
+                        Direction = new PointD(0, 1) //Vertical line
+                    }
+                };
+                Node newPar = new Node(null)
+                {
+                    IsParabola = true,
+                    Parabola = new Parabola()
+                    {
+                        Focus = s.Point
+                    }
+                };
+                if (rightMost == beachLine)
+                {
+                    replace.AssignLeftChildren(rightMost);
+                    replace.AssignRightChildren(newPar);
+                    beachLine = replace;
+                    rightMost.IsRoot = false;
+                }
+                else
+                {
+                    rightMost.Parent.AssignRightChildren(replace);
+                    replace.AssignLeftChildren(rightMost);
+                    replace.AssignRightChildren(newPar);
+                }
+            }
             polygons.Add(s.Point, new Polygon(s.Point));
-            //beachLine.Parent = beachLine;
         }
         private void SiteEvent(PointD s)
         {
@@ -180,11 +226,11 @@ namespace FortuneVoronoy
                 try
                 {
                     Console.WriteLine($"Adding intersection: ({intersection.X}, {intersection.Y})");
-                    events.Add(intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2)), new EdgeEvent(intersection, n));
+                    events.Add(new PointD(intersection.X, intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2))), new EdgeEvent(intersection, n));
                 }
                 catch (ArgumentException e)
                 {
-                    Console.WriteLine(events.GetValueOrDefault(intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2))).AssociatedPoint.X);
+                    Console.WriteLine(events.GetValueOrDefault(new PointD(intersection.X, intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2)))).AssociatedPoint.X);
                     throw e;
                 }
             }
@@ -355,61 +401,68 @@ namespace FortuneVoronoy
                     Console.WriteLine($"Ray endpoint:({r.EndPoint.X}, {r.EndPoint.Y})");
                     Console.WriteLine($"Ray direction: {r.Direction.X}");
                     Console.WriteLine($"Ray is root: {node.IsRoot}");
-                    double f = (p.Focus.Y - directrix);
-                    double a = 1 / (2 * f);
-                    double m = (r.Direction.Y / r.Direction.X);
-                    double b = -p.Focus.X / f - m;
-                    double c = ((p.Focus.X * p.Focus.X) / (f) + (directrix + p.Focus.Y)) / 2 - (m * -r.EndPoint.X + r.EndPoint.Y);
-
-                    double discr = b * b - 4 * a * c;
-                    if (discr < 0)
+                    double intersection = 0.0d;
+                    if (r.Direction.X == 0) //If ray is vertical
                     {
-                        Console.WriteLine($"Discr less than 0: {discr}");
-                        lagging = node;
-                        node = Next(node, false, false, true);
-                    }
-                    else if (discr == 0) //The intersection is at the focus, saves operation time.
-                    {
-                        if (x < p.Focus.X)
-                        {
-                            return lagging; //Point x hits lagging.
-                        }
-                        else if (x == p.Focus.X)
-                        {
-                            return lagging;
-                            //TODO: What happens when the x coordinate being searched for is exactly on the intersection. What to return?
-                        }
-                        else
-                        {
-                            Console.WriteLine($"One solution discr 0");
-                            lagging = node;
-                            node = Next(node, false, false, true);
-                        }
+                        intersection = r.EndPoint.X;
                     }
                     else
                     {
-                        double intersection = 0.0d;
-                        if (r.Direction.X > 0) //Chooses which zero to get based on which ray of the line that intersects the parabola it has.
+                        double m = (r.Direction.Y / r.Direction.X);
+                        double f = (p.Focus.Y - directrix);
+                        double a = 1 / (2 * f);
+                        double b = -p.Focus.X / f - m;
+                        double c = ((p.Focus.X * p.Focus.X) / (f) + (directrix + p.Focus.Y)) / 2 - (m * -r.EndPoint.X + r.EndPoint.Y);
+
+                        double discr = b * b - 4 * a * c;
+                        if (discr < 0)
                         {
-                            intersection = (-b - Math.Sqrt(discr)) / (2 * a);
-                        }
-                        else
-                        {
-                            intersection = (-b + Math.Sqrt(discr)) / (2 * a);
-                        }
-                        if (x < intersection)
-                        {
-                            Console.WriteLine($"Yes dice: intersection = {intersection}");
-                            return lagging; //Point x hits lagging.
-                        }
-                        else
-                        {
-                            Console.WriteLine($"No dice: intersection = {intersection}");
+                            Console.WriteLine($"Discr less than 0: {discr}");
                             lagging = node;
-                            Console.WriteLine($"Is root: {node.IsRoot}");
-                            Console.WriteLine($"Is ray: {!node.IsParabola}");
                             node = Next(node, false, false, true);
                         }
+                        else if (discr == 0) //The intersection is at the focus, saves operation time.
+                        {
+                            if (x < p.Focus.X)
+                            {
+                                return lagging; //Point x hits lagging.
+                            }
+                            else if (x == p.Focus.X)
+                            {
+                                return lagging;
+                                //TODO: What happens when the x coordinate being searched for is exactly on the intersection. What to return?
+                            }
+                            else
+                            {
+                                Console.WriteLine($"One solution discr 0");
+                                lagging = node;
+                                node = Next(node, false, false, true);
+                            }
+                        }
+                        else
+                        {
+                            if (r.Direction.X > 0) //Chooses which zero to get based on which ray of the line that intersects the parabola it has.
+                            {
+                                intersection = (-b - Math.Sqrt(discr)) / (2 * a);
+                            }
+                            else
+                            {
+                                intersection = (-b + Math.Sqrt(discr)) / (2 * a);
+                            }
+                        }
+                    }
+                    if (x < intersection)
+                    {
+                        Console.WriteLine($"Yes dice: intersection = {intersection}");
+                        return lagging; //Point x hits lagging.
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No dice: intersection = {intersection}");
+                        lagging = node;
+                        Console.WriteLine($"Is root: {node.IsRoot}");
+                        Console.WriteLine($"Is ray: {!node.IsParabola}");
+                        node = Next(node, false, false, true);
                     }
                 }
             }
@@ -520,10 +573,26 @@ namespace FortuneVoronoy
             {
                 Console.WriteLine(e);
             }
-            Tree t = new Tree(n.IsParabola ? $"P ({n.Parabola.Focus.X}, {n.Parabola.Focus.Y})" : "R");
+            Tree t = new Tree(n.IsParabola ? $"P ({n.Parabola.Focus.X}, {n.Parabola.Focus.Y}) {n.IsRoot}" : $"R {n.IsRoot}");
             t.AddNode(RenderBeachLine(n.LeftChildren));
             t.AddNode(RenderBeachLine(n.RightChildren));
             return t;
         }
     }
+    public class EventComparer : IComparer<PointD>
+    {
+        public int Compare(PointD a, PointD b) //Orders in y direction first, from smallest to largest, then in 
+        {
+            int yComp = a.Y.CompareTo(b.Y);
+            if (yComp == 0)
+            {
+                return a.X.CompareTo(b.X);
+            }
+            else
+            {
+                return yComp;
+            }
+        }
+    }
+
 }

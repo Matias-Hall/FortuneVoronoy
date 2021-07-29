@@ -11,7 +11,7 @@ namespace FortuneVoronoyTest
     {
         [TestMethod]
         [Timeout(5_000)]
-        public void TestMethod1()
+        public void GeneralTest1()
         {
             FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
             List<Seed> seeds = new List<Seed>() { new PointD(25.74, 12.75), new PointD(20.6, 2.9), new PointD(32.1, 24.2), new PointD(36.8, 7.15), new PointD(13.3, 17.5) };
@@ -25,7 +25,7 @@ namespace FortuneVoronoyTest
         }
         [TestMethod]
         [Timeout(5_000)]
-        public void TestMethod2()
+        public void GeneralTest2()
         {
             FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
             List<Seed> seeds = new List<Seed>() { new PointD(844, 330), new PointD(1119, 235), new PointD(1278, 541), new PointD(507, 674), new PointD(428, 464), new PointD(559, 313), new PointD(1078, 184), new PointD(1625, 839), new PointD(741, 889) };
@@ -52,6 +52,30 @@ namespace FortuneVoronoyTest
             foreach (var pol in polys)
             {
                 Assert.IsTrue(p.Contains(pol));
+            }
+        }
+        [TestMethod]
+        [Timeout(5_000)]
+        public void GeneralTest3()
+        {
+            FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
+            List<Seed> seeds = new List<Seed>() { new PointD(559, 420), new PointD(208, 164), new PointD(127, 579), new PointD(541, 283), new PointD(28, 529), new PointD(250, 84), new PointD(65, 428), new PointD(339, 352), new PointD(187, 537), new PointD(554, 69), new PointD(348, 80), new PointD(248, 239), new PointD(245, 164), new PointD(307, 264), new PointD(64, 360), new PointD(421, 239), new PointD(357, 37), new PointD(66, 158), new PointD(235, 292), new PointD(226, 354), new PointD(292, 177), new PointD(232, 471), new PointD(94, 293), new PointD(183, 216), new PointD(258, 346), new PointD(156, 84), new PointD(256, 509), new PointD(81, 25), new PointD(273, 457), new PointD(275, 207), new PointD(84, 311), new PointD(311, 283), new PointD(431, 292), new PointD(455, 453), new PointD(450, 397), new PointD(198, 195), new PointD(51, 218), new PointD(456, 64), new PointD(21, 535), new PointD(95, 392), new PointD(426, 530), new PointD(11, 342), new PointD(438, 487), new PointD(547, 45), new PointD(510, 268), new PointD(442, 20), new PointD(150, 599), new PointD(514, 527), new PointD(287, 26), new PointD(388, 229), };
+            fortune.Run(seeds);
+            Assert.Inconclusive();
+        }
+        [TestMethod]
+        [Timeout(5_000)]
+        public void SameEventKeyTest()
+        {
+            FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
+            List<Seed> seeds = new List<Seed>() { new PointD(6, 6), new PointD(15, 6), new PointD(8, 10), new PointD(7, 14), new PointD(15, 14), };
+            List<Polygon> p = fortune.Run(seeds);
+            List<PointD> shouldContain = new List<PointD>() { new PointD(10.5, 6.25), new PointD(12.642, 10), new PointD(1.8334, 10.583), new PointD(11, 12.875), };
+            Polygon completed = p.Where(x => x.Site == new PointD(8, 10)).First();
+            completed.Vertices.ForEach(x => Console.WriteLine($"{x.X}, {x.Y}"));
+            foreach (var cont in shouldContain)
+            {
+                Assert.IsTrue(completed.Vertices.Contains(cont));
             }
         }
     }
