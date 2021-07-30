@@ -90,7 +90,7 @@ namespace FortuneVoronoyTest
         }
         [TestMethod]
         [Timeout(5_000)]
-        public void FourEdgeIntersection() //Tests an edge intersection of four rays.
+        public void FourEdgeIntersection() //Tests an edge intersection of four rays. The seeds are four points that lie in the same circle
         {
             FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
             List<Seed> seeds = new List<Seed>() { new PointD(100, 100), new PointD(220, 100), new PointD(100, 282), new PointD(220, 282) };
@@ -99,7 +99,18 @@ namespace FortuneVoronoyTest
             {
                 Assert.AreEqual(new PointD(160, 191), inter);
             }
-
+        }
+        [TestMethod]
+        [Timeout(5_000)]
+        public void EightEdgeIntersection() //Tests an edge intersection of eight rays. The seeds are eight points that lie in the same circle
+        {
+            FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
+            List<Seed> seeds = new List<Seed>() { new PointD(100, 100), new PointD(220, 100), new PointD(100, 282), new PointD(220, 282), new PointD(264, 223.634), new PointD(264, 158.366), new PointD(56, 223.634), new PointD(56, 158.366) };
+            List<PointD> intersections = fortune.Run(seeds).Select(x => x.Vertices[0]).ToList();
+            foreach (var inter in intersections)
+            {
+                Assert.AreEqual(new PointD(160, 191), inter);
+            }
         }
     }
 }
