@@ -136,11 +136,12 @@ namespace FortuneVoronoy
     public struct EdgeEvent : IEvent
     {
         public PointD AssociatedPoint { get; set; } //Point of intersection.
-        public Node SquishedParabola { get; set; }
+        public List<Node> SquishedParabolas { get; set; }
         public EdgeEvent(PointD p, Node n)
         {
             AssociatedPoint = p;
-            SquishedParabola = n;
+            SquishedParabolas = new List<Node>();
+            SquishedParabolas.Add(n);
         }
     }
     public struct PointD

@@ -75,7 +75,7 @@ namespace FortuneVoronoyTest
         }
         [TestMethod]
         [Timeout(5_000)]
-        public void SameEventKeyTest()
+        public void SameEventKeyTest() //Tests parabolas having the same y coord.
         {
             FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
             List<Seed> seeds = new List<Seed>() { new PointD(6, 6), new PointD(15, 6), new PointD(8, 10), new PointD(7, 14), new PointD(15, 14), };
@@ -87,6 +87,19 @@ namespace FortuneVoronoyTest
             {
                 Assert.IsTrue(completed.Vertices.Contains(cont));
             }
+        }
+        [TestMethod]
+        [Timeout(5_000)]
+        public void FourEdgeIntersection() //Tests an edge intersection of four rays.
+        {
+            FortuneVoronoy.FortuneVoronoy fortune = new FortuneVoronoy.FortuneVoronoy();
+            List<Seed> seeds = new List<Seed>() { new PointD(100, 100), new PointD(220, 100), new PointD(100, 282), new PointD(220, 282) };
+            List<PointD> intersections = fortune.Run(seeds).Select(x => x.Vertices[0]).ToList();
+            foreach (var inter in intersections)
+            {
+                Assert.AreEqual(new PointD(160, 191), inter);
+            }
+
         }
     }
 }

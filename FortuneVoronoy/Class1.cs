@@ -223,15 +223,25 @@ namespace FortuneVoronoy
             if (intersection.X != 0)
             {
                 PointD focus = n.Parabola.Focus;
-                try
+                PointD directrixLoc = new PointD(intersection.X, intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2)));
+                if (events.ContainsKey(directrixLoc))
+                {
+                    IEvent eve = events.GetValueOrDefault(directrixLoc);
+                    if (eve is EdgeEvent)
+                    {
+                        Console.WriteLine($"Updating intersection: ({intersection.X}, {intersection.Y})");
+                        EdgeEvent edgeEve = (EdgeEvent)eve;
+                        edgeEve.SquishedParabolas.Add(n);
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Huh?");
+                    }
+                }
+                else
                 {
                     Console.WriteLine($"Adding intersection: ({intersection.X}, {intersection.Y})");
-                    events.Add(new PointD(intersection.X, intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2))), new EdgeEvent(intersection, n));
-                }
-                catch (ArgumentException e)
-                {
-                    Console.WriteLine(events.GetValueOrDefault(new PointD(intersection.X, intersection.Y + Math.Sqrt(Math.Pow(focus.X - intersection.X, 2) + Math.Pow(focus.Y - intersection.Y, 2)))).AssociatedPoint.X);
-                    throw e;
+                    events.Add(directrixLoc, new EdgeEvent(intersection, n));
                 }
             }
 
@@ -262,140 +272,143 @@ namespace FortuneVoronoy
         private void EdgeEvent(EdgeEvent eve)
         {
             AnsiConsole.Render(RenderBeachLine(beachLine));
-            if (eve.SquishedParabola.Exists)
+            foreach (var par in eve.SquishedParabolas)
             {
-                Console.WriteLine($"Vertex being added: ({eve.AssociatedPoint.X}, {eve.AssociatedPoint.Y})");
-                if (eve.SquishedParabola.IsLeftChildren)
+                if (par.Exists)
                 {
-                    Node leftRay = Prev(eve.SquishedParabola);
-                    Node leftPar = Prev(leftRay);
-                    Node right = eve.SquishedParabola.Parent.RightChildren;
-                    Node rightPar = Next(Next(eve.SquishedParabola));
-                    Console.WriteLine($"Left parabola is: ({leftPar.Parabola.Focus.X}, {leftPar.Parabola.Focus.Y})");
-                    Console.WriteLine($"Right parabola is: ({rightPar.Parabola.Focus.X}, {rightPar.Parabola.Focus.Y})");
-                    double dir = Math.Abs(rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y));
-                    if (rightPar.Parabola.Focus.X < leftPar.Parabola.Focus.X)
+                    Console.WriteLine($"Vertex being added: ({eve.AssociatedPoint.X}, {eve.AssociatedPoint.Y})");
+                    if (par.IsLeftChildren)
                     {
-                        dir = -dir; //If the condition is true, the ray travels down (negative y dir) rather than up.
-                    }
-                    Console.WriteLine($"Computed direction: {dir}");
-                    PointD dirPt;
-                    if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
-                    {
-                        dirPt = new PointD(1, Math.Abs(dir));
-                    }
-                    else if (rightPar.Parabola.Focus.Y > leftPar.Parabola.Focus.Y)
-                    {
-                        dirPt = new PointD(-1, Math.Abs(dir));
-                    }
-                    else
-                    {
-                        dirPt = new PointD(0, 1); //If both parabolas lie on a horizontal line, the ray from their intersection will be vertical.
-                    }
-                    Node replacement = new Node(leftRay.Parent)
-                    {
-                        IsRoot = leftRay.IsRoot,
-                        Ray = new Ray()
+                        Node leftRay = Prev(par);
+                        Node leftPar = Prev(leftRay);
+                        Node right = par.Parent.RightChildren;
+                        Node rightPar = Next(Next(par));
+                        Console.WriteLine($"Left parabola is: ({leftPar.Parabola.Focus.X}, {leftPar.Parabola.Focus.Y})");
+                        Console.WriteLine($"Right parabola is: ({rightPar.Parabola.Focus.X}, {rightPar.Parabola.Focus.Y})");
+                        double dir = Math.Abs(rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y));
+                        if (rightPar.Parabola.Focus.X < leftPar.Parabola.Focus.X)
                         {
-                            EndPoint = eve.AssociatedPoint,
-                            Direction = dirPt
+                            dir = -dir; //If the condition is true, the ray travels down (negative y dir) rather than up.
                         }
-                    };
-                    replacement.AssignLeftChildren(leftRay.LeftChildren);
-                    if (leftRay.RightChildren == eve.SquishedParabola.Parent)
-                    {
-                        replacement.AssignRightChildren(right);
-                    }
-                    else
-                    {
-                        replacement.AssignRightChildren(leftRay.RightChildren);
-                        eve.SquishedParabola.Parent.Parent.AssignLeftChildren(right);
-                    }
+                        Console.WriteLine($"Computed direction: {dir}");
+                        PointD dirPt;
+                        if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
+                        {
+                            dirPt = new PointD(1, Math.Abs(dir));
+                        }
+                        else if (rightPar.Parabola.Focus.Y > leftPar.Parabola.Focus.Y)
+                        {
+                            dirPt = new PointD(-1, Math.Abs(dir));
+                        }
+                        else
+                        {
+                            dirPt = new PointD(0, 1); //If both parabolas lie on a horizontal line, the ray from their intersection will be vertical.
+                        }
+                        Node replacement = new Node(leftRay.Parent)
+                        {
+                            IsRoot = leftRay.IsRoot,
+                            Ray = new Ray()
+                            {
+                                EndPoint = eve.AssociatedPoint,
+                                Direction = dirPt
+                            }
+                        };
+                        replacement.AssignLeftChildren(leftRay.LeftChildren);
+                        if (leftRay.RightChildren == par.Parent)
+                        {
+                            replacement.AssignRightChildren(right);
+                        }
+                        else
+                        {
+                            replacement.AssignRightChildren(leftRay.RightChildren);
+                            par.Parent.Parent.AssignLeftChildren(right);
+                        }
 
-                    if (leftRay.IsLeftChildren)
-                    {
-                        leftRay.Parent.AssignLeftChildren(replacement);
-                    }
-                    else if (!leftRay.IsRoot)
-                    {
-                        leftRay.Parent.AssignRightChildren(replacement);
-                    }
-                    else
-                    {
-                        beachLine = replacement;
-                    }
-                    Console.WriteLine("NEW beachline:");
-                    AnsiConsole.Render(RenderBeachLine(beachLine));
-                    polygons.GetValueOrDefault(leftPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
-                    polygons.GetValueOrDefault(rightPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
-                    polygons.GetValueOrDefault(eve.SquishedParabola.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
-                    CheckForEdgeEvent(leftPar);
-                    CheckForEdgeEvent(rightPar);
-                }
-                else
-                {
-                    Node rightRay = Next(eve.SquishedParabola);
-                    Node rightPar = Next(rightRay);
-                    Node left = eve.SquishedParabola.Parent.LeftChildren;
-                    Node leftPar = Prev(Prev(eve.SquishedParabola));
-                    double dir = Math.Abs(rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y));
-                    if (rightPar.Parabola.Focus.X < leftPar.Parabola.Focus.X)
-                    {
-                        dir = -dir; //If the condition is true, the ray travels down (negative y dir) rather than up.
-                    }
-                    PointD dirPt;
-                    if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
-                    {
-                        dirPt = new PointD(1, dir);
-                    }
-                    else if (rightPar.Parabola.Focus.Y > leftPar.Parabola.Focus.Y)
-                    {
-                        dirPt = new PointD(-1, dir);
-                    }
-                    else
-                    {
-                        dirPt = new PointD(0, 1); //If both parabolas lie on a horizontal line, the ray from their intersection will be vertical.
-                    }
-                    Node replacement = new Node(rightRay.Parent)
-                    {
-                        IsRoot = rightRay.IsRoot,
-                        Ray = new Ray()
+                        if (leftRay.IsLeftChildren)
                         {
-                            EndPoint = eve.AssociatedPoint,
-                            Direction = dirPt
+                            leftRay.Parent.AssignLeftChildren(replacement);
                         }
-                    };
-                    replacement.AssignRightChildren(rightRay.RightChildren);
-                    if (rightRay == eve.SquishedParabola.Parent.Parent)
-                    {
-                        replacement.AssignLeftChildren(left);
+                        else if (!leftRay.IsRoot)
+                        {
+                            leftRay.Parent.AssignRightChildren(replacement);
+                        }
+                        else
+                        {
+                            beachLine = replacement;
+                        }
+                        Console.WriteLine("NEW beachline:");
+                        AnsiConsole.Render(RenderBeachLine(beachLine));
+                        polygons.GetValueOrDefault(leftPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                        polygons.GetValueOrDefault(rightPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                        polygons.GetValueOrDefault(par.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                        CheckForEdgeEvent(leftPar);
+                        CheckForEdgeEvent(rightPar);
                     }
                     else
                     {
-                        replacement.AssignLeftChildren(rightRay.LeftChildren);
-                        eve.SquishedParabola.Parent.Parent.AssignRightChildren(left);
+                        Node rightRay = Next(par);
+                        Node rightPar = Next(rightRay);
+                        Node left = par.Parent.LeftChildren;
+                        Node leftPar = Prev(Prev(par));
+                        double dir = Math.Abs(rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y));
+                        if (rightPar.Parabola.Focus.X < leftPar.Parabola.Focus.X)
+                        {
+                            dir = -dir; //If the condition is true, the ray travels down (negative y dir) rather than up.
+                        }
+                        PointD dirPt;
+                        if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
+                        {
+                            dirPt = new PointD(1, dir);
+                        }
+                        else if (rightPar.Parabola.Focus.Y > leftPar.Parabola.Focus.Y)
+                        {
+                            dirPt = new PointD(-1, dir);
+                        }
+                        else
+                        {
+                            dirPt = new PointD(0, 1); //If both parabolas lie on a horizontal line, the ray from their intersection will be vertical.
+                        }
+                        Node replacement = new Node(rightRay.Parent)
+                        {
+                            IsRoot = rightRay.IsRoot,
+                            Ray = new Ray()
+                            {
+                                EndPoint = eve.AssociatedPoint,
+                                Direction = dirPt
+                            }
+                        };
+                        replacement.AssignRightChildren(rightRay.RightChildren);
+                        if (rightRay == par.Parent.Parent)
+                        {
+                            replacement.AssignLeftChildren(left);
+                        }
+                        else
+                        {
+                            replacement.AssignLeftChildren(rightRay.LeftChildren);
+                            par.Parent.Parent.AssignRightChildren(left);
+                        }
+                        if (rightRay.IsLeftChildren)
+                        {
+                            rightRay.Parent.AssignLeftChildren(replacement);
+                        }
+                        else if (!rightRay.IsRoot)
+                        {
+                            rightRay.Parent.AssignRightChildren(replacement);
+                        }
+                        else
+                        {
+                            beachLine = replacement;
+                        }
+                        Console.WriteLine("NEW beachline:");
+                        AnsiConsole.Render(RenderBeachLine(beachLine));
+                        polygons.GetValueOrDefault(leftPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                        polygons.GetValueOrDefault(rightPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                        polygons.GetValueOrDefault(par.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
+                        CheckForEdgeEvent(leftPar);
+                        CheckForEdgeEvent(rightPar);
                     }
-                    if (rightRay.IsLeftChildren)
-                    {
-                        rightRay.Parent.AssignLeftChildren(replacement);
-                    }
-                    else if (!rightRay.IsRoot)
-                    {
-                        rightRay.Parent.AssignRightChildren(replacement);
-                    }
-                    else
-                    {
-                        beachLine = replacement;
-                    }
-                    Console.WriteLine("NEW beachline:");
-                    AnsiConsole.Render(RenderBeachLine(beachLine));
-                    polygons.GetValueOrDefault(leftPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
-                    polygons.GetValueOrDefault(rightPar.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
-                    polygons.GetValueOrDefault(eve.SquishedParabola.Parabola.Focus).Vertices.Add(eve.AssociatedPoint);
-                    CheckForEdgeEvent(leftPar);
-                    CheckForEdgeEvent(rightPar);
+                    par.Exists = false; //Avoids multiple intersection events based on the same parabola segment.
                 }
-                eve.SquishedParabola.Exists = false; //Avoids multiple intersection events based on the same parabola segment.
             }
         }
         private Node Search(double x, double directrix)
