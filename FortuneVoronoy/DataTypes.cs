@@ -30,7 +30,7 @@ namespace FortuneVoronoy
             return (x - Focus.X) / (Focus.Y - directrix);
         }
     }
-    public struct Polygon
+    public struct Polygon : IEquatable<Polygon>
     {
         public List<PointD> Vertices { get; set; }
         public PointD Site { get; set; }
@@ -45,13 +45,43 @@ namespace FortuneVoronoy
             {
                 Polygon pol = (Polygon)obj;
                 if (pol.Site != Site || Vertices.Count != pol.Vertices.Count) return false;
+                Console.WriteLine("Passed 1");
                 for (int i = 0; i < Vertices.Count; i++)
                 {
-                    if (Vertices[i] != pol.Vertices[i]) return false;
+                    if (Vertices[i] != pol.Vertices[i])
+                    {
+                        Console.WriteLine($"({Vertices[i].X}, {Vertices[i].Y})");
+                        return false;
+                    }
                 }
                 return true;
             }
             return false;
+        }
+        public bool Equals(Polygon pol)
+        {
+            Console.WriteLine("Passed 0");
+            if (pol.Site != Site || Vertices.Count != pol.Vertices.Count)
+            {
+                Console.WriteLine(pol.Site != Site);
+                Console.WriteLine(Vertices.Count);
+                foreach (var item in Vertices)
+                {
+                    Console.WriteLine($"({item.X}, {item.Y})");
+                }
+                Console.WriteLine(pol.Vertices.Count);
+                return false;
+            }
+            Console.WriteLine("Passed 1");
+            for (int i = 0; i < Vertices.Count; i++)
+            {
+                if (Vertices[i] != pol.Vertices[i])
+                {
+                    Console.WriteLine($"({Vertices[i].X}, {Vertices[i].Y})");
+                    return false;
+                }
+            }
+            return true;
         }
     }
     public struct Seed

@@ -273,7 +273,11 @@ namespace FortuneVoronoy
                     Node rightPar = Next(Next(eve.SquishedParabola));
                     Console.WriteLine($"Left parabola is: ({leftPar.Parabola.Focus.X}, {leftPar.Parabola.Focus.Y})");
                     Console.WriteLine($"Right parabola is: ({rightPar.Parabola.Focus.X}, {rightPar.Parabola.Focus.Y})");
-                    double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
+                    double dir = Math.Abs(rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y));
+                    if (rightPar.Parabola.Focus.X < leftPar.Parabola.Focus.X)
+                    {
+                        dir = -dir; //If the condition is true, the ray travels down (negative y dir) rather than up.
+                    }
                     Console.WriteLine($"Computed direction: {dir}");
                     PointD dirPt;
                     if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
@@ -334,15 +338,19 @@ namespace FortuneVoronoy
                     Node rightPar = Next(rightRay);
                     Node left = eve.SquishedParabola.Parent.LeftChildren;
                     Node leftPar = Prev(Prev(eve.SquishedParabola));
-                    double dir = rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y);
+                    double dir = Math.Abs(rightPar.Parabola.DerivativeAtX(leftPar.Parabola.Focus.X, leftPar.Parabola.Focus.Y));
+                    if (rightPar.Parabola.Focus.X < leftPar.Parabola.Focus.X)
+                    {
+                        dir = -dir; //If the condition is true, the ray travels down (negative y dir) rather than up.
+                    }
                     PointD dirPt;
                     if (rightPar.Parabola.Focus.Y < leftPar.Parabola.Focus.Y)
                     {
-                        dirPt = new PointD(1, Math.Abs(dir));
+                        dirPt = new PointD(1, dir);
                     }
                     else if (rightPar.Parabola.Focus.Y > leftPar.Parabola.Focus.Y)
                     {
-                        dirPt = new PointD(-1, Math.Abs(dir));
+                        dirPt = new PointD(-1, dir);
                     }
                     else
                     {
