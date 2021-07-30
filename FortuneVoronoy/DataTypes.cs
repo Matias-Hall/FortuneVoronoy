@@ -94,56 +94,6 @@ namespace FortuneVoronoy
             return new Seed() { Point = p, Color = Color.FromArgb(r.Next(0, 256), r.Next(0, 256), r.Next(0, 256)) };
         }
     }
-    public class Node
-    {
-        public bool IsParabola { get; set; }
-        public Ray Ray { get; set; }
-        public Parabola Parabola { get; set; }
-        public Node LeftChildren { get; set; } //Smaller / to the left.
-        public Node RightChildren { get; set; } //Larger / to the right.
-        public void AssignLeftChildren(Node child)
-        {
-            LeftChildren = child;
-            child.Parent = this;
-        }
-        public void AssignRightChildren(Node child)
-        {
-            RightChildren = child;
-            child.Parent = this;
-        }
-        public Node Parent { get; set; }
-        public Node(Node parent)
-        {
-            Parent = parent;
-            Exists = true;
-        }
-        public bool IsLeftChildren { get => Parent?.LeftChildren == this; }
-        public bool IsRoot { get; set; }
-        public bool Exists { get; set; }
-    }
-    public interface IEvent
-    {
-        public PointD AssociatedPoint { get; set; }
-    }
-    public struct NewSite : IEvent
-    {
-        public PointD AssociatedPoint { get; set; } //Point of site / focus of parabola.
-        public NewSite(PointD p)
-        {
-            AssociatedPoint = p;
-        }
-    }
-    public struct EdgeEvent : IEvent
-    {
-        public PointD AssociatedPoint { get; set; } //Point of intersection.
-        public List<Node> SquishedParabolas { get; set; }
-        public EdgeEvent(PointD p, Node n)
-        {
-            AssociatedPoint = p;
-            SquishedParabolas = new List<Node>();
-            SquishedParabolas.Add(n);
-        }
-    }
     public struct PointD
     {
         /// <summary>
