@@ -17,6 +17,11 @@ namespace FortuneVoronoy
     {
         public PointD EndPoint1 { get; set; }
         public PointD EndPoint2 { get; set; }
+        public Line(PointD pt1, PointD pt2)
+        {
+            EndPoint1 = pt1;
+            EndPoint2 = pt2;
+        }
     }
     public struct Parabola
     {
@@ -124,6 +129,25 @@ namespace FortuneVoronoy
         public static bool operator !=(PointD a, PointD b)
         {
             return !a.Equals(b);
+        }
+    }
+    public class NewPolygon
+    {
+        public List<Line> Edges { get; set; }
+        public PointD Site { get; set; }
+        public NewPolygon(PointD site)
+        {
+            Site = site;
+            Edges = new List<Line>();
+        }
+    }
+    public class Vertex
+    {
+        public PointD Point { get; set; }
+        public bool TrueVertex { get; set; } //Whether it is actually a vertex of a polygon or the midpoint between vertices.
+        public Vertex(PointD point)
+        {
+            Point = point;
         }
     }
 }
